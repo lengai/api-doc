@@ -1,4 +1,5 @@
 <?php
+
 namespace Api\Doc;
 
 use think\Config;
@@ -21,26 +22,26 @@ class DocController
      */
     protected $view;
     /**
-     * @var Doc 
+     * @var Doc
      */
     protected $doc;
     /**
      * @var array 资源类型
      */
     protected $mimeType = [
-        'xml'  => 'application/xml,text/xml,application/x-xml',
+        'xml' => 'application/xml,text/xml,application/x-xml',
         'json' => 'application/json,text/x-json,application/jsonrequest,text/json',
-        'js'   => 'text/javascript,application/javascript,application/x-javascript',
-        'css'  => 'text/css',
-        'rss'  => 'application/rss+xml',
+        'js' => 'text/javascript,application/javascript,application/x-javascript',
+        'css' => 'text/css',
+        'rss' => 'application/rss+xml',
         'yaml' => 'application/x-yaml,text/yaml',
         'atom' => 'application/atom+xml',
-        'pdf'  => 'application/pdf',
+        'pdf' => 'application/pdf',
         'text' => 'text/plain',
-        'png'  => 'image/png',
-        'jpg'  => 'image/jpg,image/jpeg,image/pjpeg',
-        'gif'  => 'image/gif',
-        'csv'  => 'text/csv',
+        'png' => 'image/png',
+        'jpg' => 'image/jpg,image/jpeg,image/pjpeg',
+        'gif' => 'image/gif',
+        'csv' => 'text/csv',
         'html' => 'text/html,application/xhtml+xml,*/*',
     ];
 
@@ -50,17 +51,17 @@ class DocController
             $request = Request::instance();
         }
         $this->request = $request;
-        $this->assets_path = __DIR__.DS.'assets'.DS;
-        $this->view_path = __DIR__.DS.'view'.DS;
+        $this->assets_path = __DIR__ . DS . 'assets' . DS;
+        $this->view_path = __DIR__ . DS . 'view' . DS;
         $config = [
             'view_path' => $this->view_path
         ];
-        $this->view =  new View($config);
+        $this->view = new View($config);
         $this->doc = new Doc((array)Config::get('doc'));//读取配置文件
 
-        $this->view->assign('title',$this->doc->__get("title"));
-        $this->view->assign('version',$this->doc->__get("version"));
-        $this->view->assign('copyright',$this->doc->__get("copyright"));
+        $this->view->assign('title', $this->doc->__get("title"));
+        $this->view->assign('version', $this->doc->__get("version"));
+        $this->view->assign('copyright', $this->doc->__get("copyright"));
         $this->root = $this->request->root();
     }
 
@@ -72,10 +73,10 @@ class DocController
     protected function show($name, $vars = [], $replace = [], $config = [])
     {
         $re = [
-            "__ASSETS__" => $this->root."/doc/assets"
+            "__ASSETS__" => $this->root . "/doc/assets"
         ];
         $replace = array_merge($re, $replace);
-        $vars = array_merge(['root'=>$this->root], $vars);
+        $vars = array_merge(['root' => $this->root], $vars);
         return $this->view->fetch($name, $vars, $replace, $config);
     }
 
@@ -88,12 +89,10 @@ class DocController
     {
         $path = str_replace("doc/assets", "", $this->request->pathinfo());
         $ext = $this->request->ext();
-        if($ext)
-        {
-            $type= "text/html";
-            $content = file_get_contents($this->assets_path.$path);
-            if(array_key_exists($ext, $this->mimeType))
-            {
+        if ($ext) {
+            $type = "text/html";
+            $content = file_get_contents($this->assets_path . $path);
+            if (array_key_exists($ext, $this->mimeType)) {
                 $type = $this->mimeType[$ext];
             }
             return response($content, 200, ['Content-Length' => strlen($content)])->contentType($type);
@@ -116,19 +115,19 @@ class DocController
     public function getList()
     {
         $list = $this->doc->getList();
-        foreach ($list as $key=>$moudel){
-            $list[$key]['iconClose'] = $this->root."/doc/assets/js/zTree_v3/img/zt-folder.png";
-            $list[$key]['iconOpen'] = $this->root."/doc/assets/js/zTree_v3/img/zt-folder-o.png";
+        foreach ($list as $key => $moudel) {
+            $list[$key]['iconClose'] = $this->root . "/doc/assets/js/zTree_v3/img/zt-folder.png";
+            $list[$key]['iconOpen'] = $this->root . "/doc/assets/js/zTree_v3/img/zt-folder-o.png";
             $list[$key]['open'] = true;
             $list[$key]['isParent'] = true;
-            foreach ($moudel['actions'] as $k=>$v) {
-                $moudel['actions'][$k]['icon'] = $this->root."/doc/assets/js/zTree_v3/img/zt-file.png";
+            foreach ($moudel['actions'] as $k => $v) {
+                $moudel['actions'][$k]['icon'] = $this->root . "/doc/assets/js/zTree_v3/img/zt-file.png";
                 $moudel['actions'][$k]['isParent'] = false;
                 $moudel['actions'][$k]['isText'] = true;
             }
             $list[$key]['actions'] = $moudel['actions'];
         }
-        return response(['firstId'=>'', 'list'=>$list], 200, [], 'json');
+        return response(['firstId' => '', 'list' => $list], 200, [], 'json');
     }
 
     /**
@@ -140,12 +139,15 @@ class DocController
     {
         list($class, $action) = explode("::", $name);
         $action_doc = $this->doc->getInfo($class, $action);
-        if($action_doc)
-        {
-            $return = $this->doc->formatReturn($action_doc);
+        if ($action_doc) {
+            if (empty($action_doc['long_description'])) {
+                $return = $this->doc->formatReturnOld($action_doc);
+            } else {
+                $return = $this->doc->formatReturn($action_doc);
+            }
             $action_doc['header'] = isset($action_doc['header']) ? array_merge($this->doc->__get('public_header'), $action_doc['header']) : [];
             $action_doc['param'] = isset($action_doc['param']) ? array_merge($this->doc->__get('public_param'), $action_doc['param']) : [];
-            return $this->show('info', ['doc'=>$action_doc, 'return'=>$return]);
+            return $this->show('info', ['doc' => $action_doc, 'return' => $return]);
         }
     }
 
@@ -161,7 +163,7 @@ class DocController
         $res['status'] = '404';
         $res['meaasge'] = '接口地址无法访问！';
         $res['result'] = '';
-        $method =  $this->request->param('method_type', 'GET');
+        $method = $this->request->param('method_type', 'GET');
         $cookie = $this->request->param('cookie');
         $headers = $this->request->param('header/a', array());
         unset($data['method_type']);
@@ -169,7 +171,7 @@ class DocController
         unset($data['cookie']);
         unset($data['header']);
         $res['result'] = http_request($api_url, $cookie, $data, $method, $headers);
-        if($res['result']){
+        if ($res['result']) {
             $res['status'] = '200';
             $res['meaasge'] = 'success';
         }
